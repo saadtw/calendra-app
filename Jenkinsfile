@@ -5,13 +5,6 @@ pipeline {
         DOCKER_HUB_REPO = 'saadtw/calendra-app'
         DOCKER_HUB_CREDENTIALS = 'dockerhub-credentials'
         IMAGE_TAG = "${BUILD_NUMBER}"
-        // Environment variables for build - using placeholder values
-        // For production, add these as Jenkins credentials
-        DATABASE_URL = 'postgresql://postgres:postgres@database:5432/calendra'
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = ''
-        CLERK_SECRET_KEY = ''
-        GOOGLE_OAUTH_CLIENT_ID = ''
-        GOOGLE_OAUTH_CLIENT_SECRET = ''
         GOOGLE_OAUTH_REDIRECT_URL = 'http://localhost:3000/api/oauth/callback'
     }
     
@@ -34,19 +27,28 @@ pipeline {
             steps {
                 echo 'Building Docker image with docker-compose...'
                 script {
-                    // Create .env file with build variables for docker-compose
-                    bat """
-                        @echo off
-                        echo DATABASE_URL=%DATABASE_URL%> .env
-                        echo NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=%NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY%>> .env
-                        echo CLERK_SECRET_KEY=%CLERK_SECRET_KEY%>> .env
-                        echo GOOGLE_OAUTH_CLIENT_ID=%GOOGLE_OAUTH_CLIENT_ID%>> .env
-                        echo GOOGLE_OAUTH_CLIENT_SECRET=%GOOGLE_OAUTH_CLIENT_SECRET%>> .env
-                        echo GOOGLE_OAUTH_REDIRECT_URL=%GOOGLE_OAUTH_REDIRECT_URL%>> .env
-                    """
-                    
-                    // Build using docker-compose which handles build args
-                    bat 'docker-compose build'
+                    // Load credentials and create .env file
+                    withCredentials([
+                        string(credentialsId: 'calendra-database-url', variable: 'DATABASE_URL'),
+                        string(credentialsId: 'clerk-publishable-key', variable: 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY'),
+                        string(credentialsId: 'clerk-secret-key', variable: 'CLERK_SECRET_KEY'),
+                        string(credentialsId: 'google-oauth-client-id', variable: 'GOOGLE_OAUTH_CLIENT_ID'),
+                        string(credentialsId: 'google-oauth-client-secret', variable: 'GOOGLE_OAUTH_CLIENT_SECRET')
+                    ]) {
+                        // Create .env file with credentials for docker-compose
+                        bat """
+                            @echo off
+                            echo DATABASE_URL=%DATABASE_URL%> .env
+                            echo NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=%NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY%>> .env
+                            echo CLERK_SECRET_KEY=%CLERK_SECRET_KEY%>> .env
+                            echo GOOGLE_OAUTH_CLIENT_ID=%GOOGLE_OAUTH_CLIENT_ID%>> .env
+                            echo GOOGLE_OAUTH_CLIENT_SECRET=%GOOGLE_OAUTH_CLIENT_SECRET%>> .env
+                            echo GOOGLE_OAUTH_REDIRECT_URL=%GOOGLE_OAUTH_REDIRECT_URL%>> .env
+                        """
+                        
+                        // Build using docker-compose which handles build args
+                        bat 'docker-compose build'
+                    }
                     
                     // Tag the built image for Docker Hub
                     bat "docker tag calendra-app-pipeline-app ${DOCKER_HUB_REPO}:${IMAGE_TAG}"
