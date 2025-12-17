@@ -5,12 +5,14 @@ pipeline {
         DOCKER_HUB_REPO = 'saadtw/calendra-app'
         DOCKER_HUB_CREDENTIALS = 'dockerhub-credentials'
         IMAGE_TAG = "${BUILD_NUMBER}"
-        // Add these credentials in Jenkins (Manage Jenkins > Credentials)
-        DATABASE_URL = credentials('calendra-database-url')
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = credentials('clerk-publishable-key')
-        CLERK_SECRET_KEY = credentials('clerk-secret-key')
-        GOOGLE_OAUTH_CLIENT_ID = credentials('google-oauth-client-id')
-        GOOGLE_OAUTH_CLIENT_SECRET = credentials('google-oauth-client-secret')
+        // Environment variables for build - using placeholder values
+        // For production, add these as Jenkins credentials
+        DATABASE_URL = 'postgresql://postgres:postgres@database:5432/calendra'
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = ''
+        CLERK_SECRET_KEY = ''
+        GOOGLE_OAUTH_CLIENT_ID = ''
+        GOOGLE_OAUTH_CLIENT_SECRET = ''
+        GOOGLE_OAUTH_REDIRECT_URL = 'http://localhost:3000/api/oauth/callback'
     }
     
     stages {
@@ -71,16 +73,19 @@ pipeline {
     }
     
     post {
+        always {
+            script {
+                echo 'Cleaning up...'
+                // Cleanup commands - ignore errors if they fail
+                bat 'docker-compose down -v 2>nul || echo Cleanup attempted'
+                bat 'docker system prune -f 2>nul || echo Prune attempted'
+            }
+        }
         success {
             echo 'Pipeline completed successfully!'
         }
         failure {
             echo 'Pipeline failed! Check the logs above.'
-        }
-        always {
-            echo 'Cleaning up...'
-            bat 'docker-compose down -v || exit 0'
-            bat 'docker system prune -f || exit 0'
         }
     }
 }
