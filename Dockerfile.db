@@ -1,0 +1,11 @@
+FROM postgres:16-alpine
+
+# Set default database
+ENV POSTGRES_DB=calendra
+ENV POSTGRES_USER=postgres
+ENV POSTGRES_PASSWORD=postgres
+
+# Copy initialization scripts if you have any
+# COPY ./init-scripts/ /docker-entrypoint-initdb.d/
+
+EXPOSE 5432

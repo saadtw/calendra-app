@@ -1,0 +1,69 @@
+services:
+  # PostgreSQL Database
+  database:
+    build:
+      context: .
+      dockerfile: Dockerfile.db
+    container_name: calendra-db
+    environment:
+      POSTGRES_DB: calendra
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - calendra-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Next.js Application (Frontend + Backend)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DATABASE_URL: postgresql://postgres:postgres@database:5432/calendra
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+        CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
+        GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID}
+        GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET}
+        GOOGLE_OAUTH_REDIRECT_URL: http://localhost:3000/api/oauth/callback
+    container_name: calendra-app
+    environment:
+      # Database connection
+      DATABASE_URL: postgresql://postgres:postgres@database:5432/calendra
+
+      # Clerk Authentication (use your actual keys)
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: /login
+      NEXT_PUBLIC_CLERK_SIGN_UP_URL: /register
+      NEXT_PUBLIC_CLERK_SIGN_IN_FORCE_REDIRECT_URL: /events
+      NEXT_PUBLIC_CLERK_SIGN_UP_FORCE_REDIRECT_URL: /events
+
+      # Google OAuth (use your actual credentials)
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET}
+      GOOGLE_OAUTH_REDIRECT_URL: http://localhost:3000/api/oauth/callback
+
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - calendra-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  calendra-network:
+    driver: bridge
