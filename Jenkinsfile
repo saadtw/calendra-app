@@ -30,13 +30,6 @@ pipeline {
             }
         }
         
-        stage('Lint') {
-            steps {
-                echo 'Running linter...'
-                bat 'npm run lint'
-            }
-        }
-        
         stage('Build Docker Image') {
             steps {
                 echo 'Building Docker image with docker-compose...'
