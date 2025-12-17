@@ -59,21 +59,29 @@ pipeline {
         
         stage('Push to Docker Hub') {
             steps {
-                echo 'Pushing image to Docker Hub...'
-                script {
-                    docker.withRegistry('https://registry.hub.docker.com', DOCKER_HUB_CREDENTIALS) {
-                        bat "docker push ${DOCKER_HUB_REPO}:${IMAGE_TAG}"
-                        bat "docker push ${DOCKER_HUB_REPO}:latest"
+        echo 'Pushing image to Docker Hub...'
+        script {
+            // Debug: Check if images exist
+            bat 'docker images | findstr saadtw/calendra-app'
+            
+            docker.withRegistry('https://registry.hub.docker.com', DOCKER_HUB_CREDENTIALS) {
+                bat "docker push ${DOCKER_HUB_REPO}:${IMAGE_TAG}"
+                bat "docker push ${DOCKER_HUB_REPO}:latest"
                     }
                 }
-            }
+            }    
         }
         
-        stage('Deploy to Staging') {
+        stage('Deploy to Kubernetes') {
             steps {
-                echo 'Deployment stage - Will deploy to Kubernetes in Section C'
-                // Kubernetes deployment will be added in Section C
-                // Example: bat 'kubectl apply -f k8s/deployment.yaml'
+                echo 'Deploying to Azure Kubernetes Service...'
+                script {
+                    bat """
+                        az aks get-credentials --resource-group calendra-rg --name calendra-cluster --overwrite-existing
+                        kubectl set image deployment/calendra-app calendra-app=${DOCKER_HUB_REPO}:${IMAGE_TAG} -n calendra
+                        kubectl rollout status deployment/calendra-app -n calendra
+                    """
+                }
             }
         }
     }

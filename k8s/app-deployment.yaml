@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: calendra-app
+  namespace: calendra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: calendra-app
+  template:
+    metadata:
+      labels:
+        app: calendra-app
+    spec:
+      containers:
+        - name: calendra-app
+          image: saadtw/calendra-app:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              name: http
+          envFrom:
+            - secretRef:
+                name: app-secrets
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: NEXT_PUBLIC_CLERK_SIGN_IN_URL
+              value: "/login"
+            - name: NEXT_PUBLIC_CLERK_SIGN_UP_URL
+              value: "/register"
+            - name: NEXT_PUBLIC_CLERK_SIGN_IN_FORCE_REDIRECT_URL
+              value: "/events"
+            - name: NEXT_PUBLIC_CLERK_SIGN_UP_FORCE_REDIRECT_URL
+              value: "/events"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: calendra-app-service
+  namespace: calendra
+spec:
+  selector:
+    app: calendra-app
+  ports:
+    - port: 80
+      targetPort: 3000
+  type: LoadBalancer
