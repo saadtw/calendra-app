@@ -34,12 +34,23 @@ pipeline {
             steps {
                 echo 'Building Docker image with docker-compose...'
                 script {
+                    // Create .env file with build variables for docker-compose
+                    bat """
+                        @echo off
+                        echo DATABASE_URL=%DATABASE_URL%> .env
+                        echo NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=%NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY%>> .env
+                        echo CLERK_SECRET_KEY=%CLERK_SECRET_KEY%>> .env
+                        echo GOOGLE_OAUTH_CLIENT_ID=%GOOGLE_OAUTH_CLIENT_ID%>> .env
+                        echo GOOGLE_OAUTH_CLIENT_SECRET=%GOOGLE_OAUTH_CLIENT_SECRET%>> .env
+                        echo GOOGLE_OAUTH_REDIRECT_URL=%GOOGLE_OAUTH_REDIRECT_URL%>> .env
+                    """
+                    
                     // Build using docker-compose which handles build args
                     bat 'docker-compose build'
                     
                     // Tag the built image for Docker Hub
-                    bat "docker tag calendra-app ${DOCKER_HUB_REPO}:${IMAGE_TAG}"
-                    bat "docker tag calendra-app ${DOCKER_HUB_REPO}:latest"
+                    bat "docker tag calendra-app-pipeline-app ${DOCKER_HUB_REPO}:${IMAGE_TAG}"
+                    bat "docker tag calendra-app-pipeline-app ${DOCKER_HUB_REPO}:latest"
                 }
             }
         }
