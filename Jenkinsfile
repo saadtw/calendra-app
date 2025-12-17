@@ -59,17 +59,14 @@ pipeline {
         
         stage('Push to Docker Hub') {
             steps {
-        echo 'Pushing image to Docker Hub...'
-        script {
-            // Debug: Check if images exist
-            bat 'docker images | findstr saadtw/calendra-app'
-            
-            docker.withRegistry('https://registry.hub.docker.com', DOCKER_HUB_CREDENTIALS) {
-                bat "docker push ${DOCKER_HUB_REPO}:${IMAGE_TAG}"
-                bat "docker push ${DOCKER_HUB_REPO}:latest"
+                echo 'Pushing image to Docker Hub...'
+                script {
+                    docker.withRegistry('https://registry.hub.docker.com', DOCKER_HUB_CREDENTIALS) {
+                        bat "docker push ${DOCKER_HUB_REPO}:${IMAGE_TAG}"
+                        bat "docker push ${DOCKER_HUB_REPO}:latest"
                     }
                 }
-            }    
+            }
         }
         
         stage('Deploy to Kubernetes') {
