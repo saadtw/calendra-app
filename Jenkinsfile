@@ -27,13 +27,6 @@ pipeline {
             steps {
                 echo 'Building Docker image with docker-compose...'
                 script {
-                    // TEMPORARY TEST MODE: Skip build, use alpine for quick testing
-                    echo '=== TEST MODE: Using alpine image for quick push test ==='
-                    bat 'docker pull alpine:latest'
-                    bat "docker tag alpine:latest ${DOCKER_HUB_REPO}:${IMAGE_TAG}"
-                    bat "docker tag alpine:latest ${DOCKER_HUB_REPO}:latest"
-                    
-                    /* COMMENT OUT FOR TESTING - UNCOMMENT WHEN READY FOR FULL BUILD
                     // Load credentials and create .env file
                     withCredentials([
                         string(credentialsId: 'calendra-database-url', variable: 'DATABASE_URL'),
@@ -60,7 +53,6 @@ pipeline {
                     // Tag the built image for Docker Hub
                     bat "docker tag calendra-app-pipeline-app ${DOCKER_HUB_REPO}:${IMAGE_TAG}"
                     bat "docker tag calendra-app-pipeline-app ${DOCKER_HUB_REPO}:latest"
-                    */
                 }
             }
         }
@@ -105,11 +97,26 @@ pipeline {
             steps {
                 echo 'Deploying to Azure Kubernetes Service...'
                 script {
-                    bat """
-                        az aks get-credentials --resource-group calendra-rg --name calendra-cluster --overwrite-existing
-                        kubectl set image deployment/calendra-app calendra-app=${DOCKER_HUB_REPO}:${IMAGE_TAG} -n calendra
-                        kubectl rollout status deployment/calendra-app -n calendra
-                    """
+                    withCredentials([
+                        string(credentialsId: 'azure-tenant-id', variable: 'AZURE_TENANT_ID'),
+                        string(credentialsId: 'azure-client-id', variable: 'AZURE_CLIENT_ID'),
+                        string(credentialsId: 'azure-client-secret', variable: 'AZURE_CLIENT_SECRET')
+                    ]) {
+                        bat """
+                            @echo off
+                            echo Logging into Azure...
+                            az login --service-principal -u %AZURE_CLIENT_ID% -p %AZURE_CLIENT_SECRET% --tenant %AZURE_TENANT_ID%
+                            
+                            echo Getting AKS credentials...
+                            az aks get-credentials --resource-group calendra-rg --name calendra-cluster --overwrite-existing
+                            
+                            echo Updating deployment...
+                            kubectl set image deployment/calendra-app calendra-app=${DOCKER_HUB_REPO}:${IMAGE_TAG} -n calendra
+                            
+                            echo Waiting for rollout to complete...
+                            kubectl rollout status deployment/calendra-app -n calendra
+                        """
+                    }
                 }
             }
         }
@@ -119,7 +126,6 @@ pipeline {
         always {
             script {
                 echo 'Cleaning up...'
-                // Cleanup commands - ignore errors if they fail
                 bat 'docker-compose down -v 2>nul || echo Cleanup attempted'
                 bat 'docker system prune -f 2>nul || echo Prune attempted'
             }
