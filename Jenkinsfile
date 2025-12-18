@@ -27,6 +27,13 @@ pipeline {
             steps {
                 echo 'Building Docker image with docker-compose...'
                 script {
+                    // TEMPORARY TEST MODE: Skip build, use alpine for quick testing
+                    echo '=== TEST MODE: Using alpine image for quick push test ==='
+                    bat 'docker pull alpine:latest'
+                    bat "docker tag alpine:latest ${DOCKER_HUB_REPO}:${IMAGE_TAG}"
+                    bat "docker tag alpine:latest ${DOCKER_HUB_REPO}:latest"
+                    
+                    /* COMMENT OUT FOR TESTING - UNCOMMENT WHEN READY FOR FULL BUILD
                     // Load credentials and create .env file
                     withCredentials([
                         string(credentialsId: 'calendra-database-url', variable: 'DATABASE_URL'),
@@ -53,6 +60,7 @@ pipeline {
                     // Tag the built image for Docker Hub
                     bat "docker tag calendra-app-pipeline-app ${DOCKER_HUB_REPO}:${IMAGE_TAG}"
                     bat "docker tag calendra-app-pipeline-app ${DOCKER_HUB_REPO}:latest"
+                    */
                 }
             }
         }
@@ -61,9 +69,33 @@ pipeline {
             steps {
                 echo 'Pushing image to Docker Hub...'
                 script {
-                    docker.withRegistry('https://registry.hub.docker.com', DOCKER_HUB_CREDENTIALS) {
-                        bat "docker push ${DOCKER_HUB_REPO}:${IMAGE_TAG}"
-                        bat "docker push ${DOCKER_HUB_REPO}:latest"
+                    // Verify images exist before pushing
+                    echo "Verifying Docker images..."
+                    bat "docker images ${DOCKER_HUB_REPO}"
+                    
+                    // Use withCredentials for more reliable authentication
+                    withCredentials([usernamePassword(
+                        credentialsId: DOCKER_HUB_CREDENTIALS,
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )]) {
+                        // Login to Docker Hub using stdin for security
+                        bat """
+                            echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin
+                        """
+                        
+                        // Push with retry logic
+                        retry(3) {
+                            echo "Pushing ${DOCKER_HUB_REPO}:${IMAGE_TAG}..."
+                            bat "docker push ${DOCKER_HUB_REPO}:${IMAGE_TAG}"
+                        }
+                        
+                        retry(3) {
+                            echo "Pushing ${DOCKER_HUB_REPO}:latest..."
+                            bat "docker push ${DOCKER_HUB_REPO}:latest"
+                        }
+                        
+                        echo "Successfully pushed images to Docker Hub!"
                     }
                 }
             }
